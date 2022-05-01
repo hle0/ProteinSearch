@@ -1,8 +1,10 @@
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.PriorityQueue;
 import java.util.Queue;
 
 /**
@@ -110,15 +112,18 @@ public class VantagePointTree<T extends VantagePointTree.Node> extends Tree<T> {
      */
     public List<DistanceQueue.Item<VantagePointTree<T>>> search(String query, int nns, boolean exhaustive) {
         // https://fribbels.github.io/vptree/writeup
+        // Don't use Integer.MAX_VALUE because it leads to all sorts of weird issues due to int overflow
+        // Wish I had thought of that 4 hours ago...
         int tau = 1_000_000_000;//Integer.MAX_VALUE;
-        Queue<VantagePointTree<T>> toSearch = new LinkedList<>();
-        toSearch.add(this);
+        AssociatedPriorityQueue<VantagePointTree<T>> toSearch = new AssociatedPriorityQueue<>();
+        boolean reachedBottom = false;
+        toSearch.add(0, this);
 
         DistanceQueue<VantagePointTree<T>> results = new DistanceQueue<>(nns);
         DistanceCache<T> distanceCache = new DistanceCache<>(query);
 
         while (toSearch.size() > 0) {
-            VantagePointTree<T> current = toSearch.poll();
+            VantagePointTree<T> current = toSearch.pollData();
             if (current == null) {
                 continue;
             }
@@ -128,9 +133,14 @@ public class VantagePointTree<T extends VantagePointTree.Node> extends Tree<T> {
             if (exhaustive) {
                 // search every single node
                 results.add(distanceCache.distance(current), current);
-                toSearch.add((VantagePointTree<T>) current.left);
-                toSearch.add((VantagePointTree<T>) current.right);
+                toSearch.add(0, (VantagePointTree<T>) current.left);
+                toSearch.add(0, (VantagePointTree<T>) current.right);
             } else {
+                if (results.size() == nns && toSearch.peek().priority > tau) {
+                    // This is an optimization not in the original writeup.
+                    break;
+                }
+
                 int dist;
                 // search intelligently
                 if (
@@ -151,7 +161,8 @@ public class VantagePointTree<T extends VantagePointTree.Node> extends Tree<T> {
                     && (dist = distanceCache.distance(current)) < current.root.threshold + tau
                 ) {
                     DebugHelper.getInstance().hit("VantagePointTree.search/body/2");
-                    toSearch.add((VantagePointTree<T>) current.left);
+                    VantagePointTree<T> curLeft = (VantagePointTree<T>) current.left;
+                    if (curLeft != null) toSearch.add(distanceCache.getRecursiveLowerBound(curLeft), curLeft);
                 }
 
                 if (
@@ -159,7 +170,8 @@ public class VantagePointTree<T extends VantagePointTree.Node> extends Tree<T> {
                     && (dist = distanceCache.distance(current)) >= current.root.threshold - tau
                 ) {
                     DebugHelper.getInstance().hit("VantagePointTree.search/body/3");
-                    toSearch.add((VantagePointTree<T>) current.right);
+                    VantagePointTree<T> curRight = (VantagePointTree<T>) current.right;
+                    if (curRight != null) toSearch.add(distanceCache.getRecursiveLowerBound(curRight), curRight);
                 }
             }
         }

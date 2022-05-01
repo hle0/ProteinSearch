@@ -61,4 +61,18 @@ public class DistanceCache<T extends VantagePointTree.Node> extends HashMap<Vant
     public int getUpperBound(VantagePointTree<T> tree) {
         return this.getBounds(tree).b;
     }
+
+    public int getRecursiveLowerBound(VantagePointTree<T> tree) {
+        int min = this.getLowerBound(tree);
+
+        if (tree.left != null) {
+            min = Math.min(min, this.getLowerBound((VantagePointTree<T>) tree.left));
+        }
+
+        if (tree.right != null) {
+            min = Math.min(min, this.getLowerBound((VantagePointTree<T>) tree.right));
+        }
+
+        return min;
+    }
 }

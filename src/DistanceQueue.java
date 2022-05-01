@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Objects;
 
 public class DistanceQueue<T> {
-    public static class Item<T> {
+    public static class Item<T> implements Comparable<Item<T>> {
         public int priority;
         public T data;
 
@@ -32,6 +32,11 @@ public class DistanceQueue<T> {
         @Override
         public int hashCode() {
             return Objects.hash(this.data, this.priority);
+        }
+
+        @Override
+        public int compareTo(Item<T> other) {
+            return this.priority - other.priority;
         }
     }
 
