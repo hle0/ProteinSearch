@@ -12,7 +12,7 @@ def filename(line):
     return d + '/' + line.split('|')[1] + '.fasta'
 
 line = input()
-for i in range(10000):
+for i in range(10000000000):
     with open(filename(line), 'w+') as f:
         tmp = True
         while tmp or not line.startswith('>'):

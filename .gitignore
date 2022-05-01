@@ -1,6 +1,8 @@
 samples.old/
+samples.old2/
 samples/
 build/
 data/
+multifasta/
 .vscode/
 release.jar

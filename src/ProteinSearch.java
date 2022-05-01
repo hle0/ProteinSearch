@@ -3,9 +3,12 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Scanner;
+import java.util.stream.Stream;
 
 public class ProteinSearch {
+    Scanner scanner = new Scanner(System.in);
     VantagePointTree<FASTAFile> tree;
 
     /**
@@ -13,7 +16,16 @@ public class ProteinSearch {
      * @param directory The directory to index FASTA files from
      */
     public ProteinSearch(String directory) {
+        this.preStartup();
         this.buildIndex(directory);
+    }
+
+    public void preStartup() {
+        Prompt prompt = new Prompt(this.scanner);
+        prompt.setQuery("What do you want to do?");
+        prompt.addVoidOption("[debug] change config options", ConfigMenu::displayMenu);
+        prompt.addDoneOption("continue normal startup");
+        prompt.promptUntilDone();
     }
 
     /**
@@ -36,22 +48,44 @@ public class ProteinSearch {
         tree = VantagePointTree.buildFromIterator(
             fileList.stream()
             .filter(f -> f.isFile())
-            .filter(f -> f.getName().endsWith(".fasta"))
-            .map(f -> {
-                FASTAFile fasta = new FASTAFile(f.getAbsolutePath());
+            .<FASTAFile>flatMap(f -> {
+                if (f.getName().endsWith(".fasta")) {
+                    FASTAFile fasta = new FASTAFile(f.getAbsolutePath());
 
-                try {
-                    // if this fails, the file is definitely not going to work
-                    fasta.getFASTAData();
-                    return fasta;
-                } catch (Exception e) {
-                    System.out.printf("Encountered error while loading %s (skipping):%n", f.getAbsolutePath());
-                    e.printStackTrace();
+                    try {
+                        // if this fails, the file is definitely not going to work
+                        fasta.getFASTAData();
+                        return Stream.of(fasta);
+                    } catch (Exception e) {
+                        System.out.printf("Encountered error while loading %s (skipping):%n", f.getAbsolutePath());
+                        e.printStackTrace();
+                    }
+
+                    return Stream.<FASTAFile>of(fasta);
+                } else if (f.getName().endsWith(".multifasta")) {
+                    try {
+                        // if this fails, the file is definitely not going to work
+                        return MultiFASTAFile.readFiles(f.getAbsolutePath()).stream()
+                            .map(fasta -> {
+                                try {
+                                    fasta.getFASTAData();
+                                    return (FASTAFile) fasta;
+                                } catch (Exception e) {
+                                    System.out.printf("Encountered error while loading %s (skipping):%n", fasta.toString());
+                                }
+
+                                return null;
+                            })
+                            .filter(Objects::nonNull);
+                    } catch (Exception e) {
+                        System.out.printf("Encountered error while loading %s (skipping):%n", f.getAbsolutePath());
+                        e.printStackTrace();
+                    }
                 }
-                
-                return null;
+
+                return Stream.empty();
             })
-            .filter(fasta -> fasta != null)
+            .filter(Objects::nonNull)
             .iterator()
         );
         DebugHelper.getInstance().lap();
@@ -68,7 +102,7 @@ public class ProteinSearch {
      * @param scanner The scanner used for user input.
      * @param exhaustive Whether to perform an exhaustive search.
      */
-    public void doSearch(Scanner scanner, boolean exhaustive) {
+    public void doSearch(boolean exhaustive) {
         String fn = Prompt.nextLine(scanner, "FASTA Filename:");
 
         DebugHelper.getInstance().lap();
@@ -82,7 +116,7 @@ public class ProteinSearch {
             FASTAFile.clearCache();
 
             Stopwatch watch = Stopwatch.tick();
-            List<DistanceQueue.Item<VantagePointTree<FASTAFile>>> results = tree.search(data, 5, exhaustive);
+            List<DistanceQueue.Item<VantagePointTree<FASTAFile>>> results = tree.search(data, ConfigMenu.NUM_NEIGHBORS, exhaustive);
             long timeSpent = watch.tock();
             DebugHelper.getInstance().lap();
 
@@ -90,7 +124,7 @@ public class ProteinSearch {
             for (int i = 0; i < results.size(); i++) {
                 DistanceQueue.Item<VantagePointTree<FASTAFile>> item = results.get(i);
 
-                System.out.printf("%d) Distance %5d, %s%n", i + 1, item.priority, item.data.root.toFancyString());
+                System.out.printf("%2d) Distance %5d, %s%n", i + 1, item.priority, item.data.root.toFancyString());
             }
         } catch (IOException e) {
             System.out.println("Failed to load FASTA sequence!");
@@ -102,24 +136,15 @@ public class ProteinSearch {
      * Run the CLI app until the user exits.
      */
     public void run() {
-        try (Scanner scanner = new Scanner(System.in)) {
-            Prompt prompt = new Prompt(scanner);
-            prompt.setQuery("What do you want to do?");
+        Prompt prompt = new Prompt(scanner);
+        prompt.setQuery("What do you want to do?");
 
-            prompt.addOption("Perform a search", p -> {
-                doSearch(scanner, false);
-                return true;
-            });
+        prompt.addVoidOption("Perform a search", p -> doSearch(false));
+        prompt.addVoidOption("[debug] Perform a long, exhaustive search", p -> doSearch(true));
+        prompt.addVoidOption("[debug] Change configuration options", ConfigMenu::displayMenu);
+        prompt.addDoneOption("Quit");
 
-            prompt.addOption("[debug] Perform a long, exhaustive search", p -> {
-                doSearch(scanner, true);
-                return true;
-            });
-
-            prompt.addOption("Exit", p -> false);
-
-            while ((boolean) prompt.doPrompt());
-        }
+        prompt.promptUntilDone();
     }
 
     public static void main(String[] args) {

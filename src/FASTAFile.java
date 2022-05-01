@@ -16,7 +16,7 @@ public class FASTAFile extends VantagePointTree.Node {
     }
 
     // The file path.
-    private final String location;
+    protected final String location;
     // The FASTA description.
     private String description = null;
     // The length of the sequence.
@@ -24,6 +24,10 @@ public class FASTAFile extends VantagePointTree.Node {
 
     public FASTAFile(String location) {
         this.location = location;
+    }
+
+    protected List<String> getLines() throws IOException {
+        return Files.readAllLines(new File(location).toPath());
     }
 
     /**
@@ -37,7 +41,7 @@ public class FASTAFile extends VantagePointTree.Node {
         if (CACHE != null && CACHE.containsKey(location)) {
             lines = CACHE.get(location);
         } else {
-            lines = Files.readAllLines(new File(location).toPath());
+            lines = this.getLines();
             if (CACHE != null) CACHE.put(location, lines);
         }
 

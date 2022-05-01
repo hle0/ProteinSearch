@@ -186,10 +186,12 @@ public class EditDistance {
 
     public static int measure(String s, String t) {
         DebugHelper.getInstance().hit("EditDistance.measure");
-        // For iterative ruler:
-        AbstractRuler ruler = new IterativeRuler(s, t);
-        // For recursive ruler, comment out the above line, and uncomment the following:
-        //AbstractRuler ruler = new RecursiveRuler(s, t);
+        
+        AbstractRuler ruler = ConfigMenu.USE_FAST_EDIT_DISTANCE
+            ? new IterativeRuler(s, t)
+            : new RecursiveRuler(s, t)
+        ;
+
         return ruler.measure();
     }
 }

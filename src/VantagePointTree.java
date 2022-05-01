@@ -1,11 +1,6 @@
-import java.util.Comparator;
-import java.util.Deque;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.PriorityQueue;
-import java.util.Queue;
 
 /**
  * Implementation of a Vantage-Point binary metric tree.
