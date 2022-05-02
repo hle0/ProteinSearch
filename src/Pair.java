@@ -1,5 +1,3 @@
-import java.util.Objects;
-
 /**
  * Pair represents a pair of two objects of the same supertype.
  * This is very similar to the java.awt.Point class, but it is generic, and has a faster hashCode method.
