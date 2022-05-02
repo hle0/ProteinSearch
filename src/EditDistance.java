@@ -93,6 +93,7 @@ public class EditDistance {
                 // the first chars are equal
                 return this.measure(new Pair<>(x + 1, y + 1));
             } else {
+                // they're not equal, so that's automatically one "edit distance point"
                 int min = this.measure(new Pair<>(x + 1, y + 1));
                 min = Math.min(min, this.measure(new Pair<>(x, y + 1)));
                 min = Math.min(min, this.measure(new Pair<>(x + 1, y)));
@@ -102,8 +103,10 @@ public class EditDistance {
 
         // Same as _measure but caches results
         private int measure(Pair<Integer> p) {
+            // Check if it's in the cache already
             Integer n = cache.get(p);
             if (n == null) {
+                // It's not, let's go compute and add it
                 n = this._measure(p.a, p.b);
                 cache.put(p, n);
             }
@@ -146,9 +149,11 @@ public class EditDistance {
                     int insertionCost = v1[j] + 1;
                     int substitutionCost = v0[j] + (s.charAt(i) == t.charAt(j) ? 0 : 1);
                     
-                    v1[j + 1] = Math.min(Math.min(deletionCost, insertionCost), substitutionCost);
+                    int minCost = Math.min(Math.min(deletionCost, insertionCost), substitutionCost);
+                    v1[j + 1] = minCost;
                 }
 
+                // perform a swap
                 int tmp[] = v0;
                 v0 = v1;
                 v1 = tmp;
@@ -186,7 +191,7 @@ public class EditDistance {
 
     public static int measure(String s, String t) {
         DebugHelper.getInstance().hit("EditDistance.measure");
-        
+
         AbstractRuler ruler = ConfigMenu.USE_FAST_EDIT_DISTANCE
             ? new IterativeRuler(s, t)
             : new RecursiveRuler(s, t)

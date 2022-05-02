@@ -20,11 +20,15 @@ public class VantagePointTree<T extends VantagePointTree.Node> extends Tree<T> {
          */
         public int threshold = 0;
 
+        // Concrete subclasses should @Override
         // String toString();
 
         @Override
         public boolean equals(Object obj) {
-            return this.getClass() == obj.getClass() && obj.toString().equals(this.toString());
+            if (obj == null) return false;
+            if (obj == this) return true;
+            if (this.getClass() != obj.getClass()) return false;
+            return obj.toString().equals(this.toString());
         }
 
         /**
@@ -56,13 +60,13 @@ public class VantagePointTree<T extends VantagePointTree.Node> extends Tree<T> {
     public void add(T node) {
         int dist = EditDistance.measure(node.getRawData(), root.getRawData());
 
-        if (left == null) {
+        if (getLeft() == null) {
             // If we don't have a left subtree, we definitely don't have a right subtree.
             // Make this the left subtree and make the threshold distance equal to the distance from the added node to root.
             root.threshold = dist;
-            left = new VantagePointTree<>(node);
+            setLeft(new VantagePointTree<>(node));
         } else {
-            if (right == null) {
+            if (getRight() == null) {
                 // We have a left subtree but not a right subtree.
                 if (dist < root.threshold) {
                     // case A
@@ -72,27 +76,27 @@ public class VantagePointTree<T extends VantagePointTree.Node> extends Tree<T> {
                     // this is fine since all the nodes that could be on the left tree must be the same edit distance away from root
                     // this is because the only case that could have been invoked prior to this one is case C (if it was invoked at all)
                     // otherwise we would have a right subtree already
-                    right = left;
-                    left = new VantagePointTree<>(node);
+                    setRight(getLeft());
+                    setLeft(new VantagePointTree<>(node));
                 } else if (dist > root.threshold) {
                     // case B
                     // the added node is farther from the root node than the left subtree is from the root node
                     // so we should just make this the right subtree and everything will be fine
-                    right = new VantagePointTree<>(node);
+                    setRight(new VantagePointTree<>(node));
                 } else {
                     // case C
                     // both the left subtree and the new node are the same distance from the root node
                     // so add the new node to the left subtree
-                    ((VantagePointTree<T>) left).add(node);
+                    ((VantagePointTree<T>) getLeft()).add(node);
                 }
             } else {
                 // we have both subtrees != null
                 if (dist <= root.threshold) {
                     // this belongs on the left
-                    ((VantagePointTree<T>) left).add(node);
+                    ((VantagePointTree<T>) getLeft()).add(node);
                 } else {
                     // this belongs on the right
-                    ((VantagePointTree<T>) right).add(node);
+                    ((VantagePointTree<T>) getRight()).add(node);
                 }
             }
         }
@@ -105,79 +109,82 @@ public class VantagePointTree<T extends VantagePointTree.Node> extends Tree<T> {
      * @param exhaustive If true, go through every single subtree, including subtrees that shouldn't need to be searched
      * @return A list containing the nearest neighbors
      */
-    public List<DistanceQueue.Item<VantagePointTree<T>>> search(String query, int nns, boolean exhaustive) {
+    public List<AssociatedPriorityQueue.Item<VantagePointTree<T>>> search(String query, int nns, boolean exhaustive) {
         // https://fribbels.github.io/vptree/writeup
+
+        DebugHelper.getInstance().hit("VantagePointTree.search");
+
         // Don't use Integer.MAX_VALUE because it leads to all sorts of weird issues due to int overflow
         // Wish I had thought of that 4 hours ago...
         int tau = 1_000_000_000;//Integer.MAX_VALUE;
         AssociatedPriorityQueue<VantagePointTree<T>> toSearch = new AssociatedPriorityQueue<>();
-        boolean reachedBottom = false;
-        toSearch.add(0, this);
+        assert toSearch.prioritizeItem(0, this);
+        assert !toSearch.isEmpty(); // you'd be surprised how much this has driven me mad
 
-        DistanceQueue<VantagePointTree<T>> results = new DistanceQueue<>(nns);
+        AssociatedPriorityQueue<VantagePointTree<T>> results = new AssociatedPriorityQueue<>(nns);
         DistanceCache<T> distanceCache = new DistanceCache<>(query);
 
-        while (toSearch.size() > 0) {
-            VantagePointTree<T> current = toSearch.pollData();
-            if (current == null) {
-                continue;
-            }
-
+        while (
+            !toSearch.isEmpty()
+            // If the following condition is false, there will not be any better elements,
+            // since the recursive lower bounds are all too high.
+            //
+            // This is an optimization not in the original writeup.
+            //&& toSearch.peek().priority <= tau
+        ) {
             DebugHelper.getInstance().hit("VantagePointTree.search/body");
+
+            AssociatedPriorityQueue.Item<VantagePointTree<T>> currentItem = toSearch.poll();
+
+            VantagePointTree<T> current  = currentItem.data;
+            VantagePointTree<T> curLeft  = (VantagePointTree<T>) current.getLeft();
+            VantagePointTree<T> curRight = (VantagePointTree<T>) current.getRight();
 
             if (exhaustive) {
                 // search every single node
-                results.add(distanceCache.distance(current), current);
-                toSearch.add(0, (VantagePointTree<T>) current.left);
-                toSearch.add(0, (VantagePointTree<T>) current.right);
+                results.prioritizeItem(distanceCache.distance(current), current);
+                if (curLeft  != null) assert toSearch.prioritizeItem(0, (VantagePointTree<T>)  curLeft);
+                if (curRight != null) assert toSearch.prioritizeItem(0, (VantagePointTree<T>) curRight);
             } else {
-                if (results.size() == nns && toSearch.peek().priority > tau) {
-                    // This is an optimization not in the original writeup.
-                    break;
-                }
-
                 int dist;
                 // search intelligently
                 if (
-                    distanceCache.getLowerBound(current) < tau
-                    && (dist = distanceCache.distance(current)) < tau
+                    distanceCache.getLowerBound(current) <= tau
+                    && (dist = distanceCache.distance(current)) <= tau
                 ) {
                     DebugHelper.getInstance().hit("VantagePointTree.search/body/1");
-                    results.add(dist, current);
-                    if (results.size() == nns) {
+                    results.prioritizeItem(dist, current);
+                    if (results.atCapacity()) {
                         tau = results.getWorstPriority();
                     }
-                    // search again? edit: no this causes an infinite loop
-                    //toSearch.add(current);
                 }
 
                 if (
-                    distanceCache.getLowerBound(current) < current.root.threshold + tau
-                    && (dist = distanceCache.distance(current)) < current.root.threshold + tau
+                    curLeft != null
+                    && distanceCache.getLowerBound(current) <= current.root.threshold + tau
+                    && (dist = distanceCache.distance(current)) <= current.root.threshold + tau
                 ) {
                     DebugHelper.getInstance().hit("VantagePointTree.search/body/2");
-                    VantagePointTree<T> curLeft = (VantagePointTree<T>) current.left;
-                    if (curLeft != null) toSearch.add(distanceCache.getRecursiveLowerBound(curLeft), curLeft);
+                    toSearch.prioritizeItem(distanceCache.getRecursiveLowerBound(curLeft), curLeft);
                 }
 
                 if (
-                    distanceCache.getUpperBound(current) >= current.root.threshold - tau
+                    curRight != null
+                    && distanceCache.getUpperBound(current) >= current.root.threshold - tau
                     && (dist = distanceCache.distance(current)) >= current.root.threshold - tau
                 ) {
                     DebugHelper.getInstance().hit("VantagePointTree.search/body/3");
-                    VantagePointTree<T> curRight = (VantagePointTree<T>) current.right;
-                    if (curRight != null) toSearch.add(distanceCache.getRecursiveLowerBound(curRight), curRight);
+                    toSearch.prioritizeItem(distanceCache.getRecursiveLowerBound(curRight), curRight);
                 }
             }
         }
 
-        List<DistanceQueue.Item<VantagePointTree<T>>> l = results.getAll();
-
-        if (l.size() < nns) {
+        if (results.size() < nns) {
+            // This shouldn't happen, hopefully
             System.out.println("NOTE: Some results may have been omitted due to tree layout.");
         }
 
-        return l;
+        return results;
     }
 
     /**
@@ -201,9 +208,16 @@ public class VantagePointTree<T extends VantagePointTree.Node> extends Tree<T> {
 
         System.out.println();
 
-        output.balance();
+        // It turns out tree rotations break a lot of things, but I didn't notice because assertions were disabled.
+        //output.balance();
 
         output.verify();
+
+        if (ConfigMenu.OPTIMIZE_TREE) {
+            System.out.println("Optimizing tree, this may take a while. Go grab some coffee...");
+
+            output = output.optimize();
+        }
 
         return output;
     }
@@ -217,9 +231,15 @@ public class VantagePointTree<T extends VantagePointTree.Node> extends Tree<T> {
 
         VantagePointTree<T> optimized = new VantagePointTree<>(nodes.poll());
 
+        int i = 1;
+
         while (nodes.size() > 0) {
             optimized.add(nodes.poll());
+            System.out.printf("Optimized %6d nodes so far...\r", ++i);
         }
+
+        // It turns out tree rotations break a lot of things, but I didn't notice because assertions were disabled.
+        //optimized.balance();
 
         optimized.verify();
 
@@ -228,11 +248,11 @@ public class VantagePointTree<T extends VantagePointTree.Node> extends Tree<T> {
 
     @Override
     public void verify() {
-        if (left != null) {
-            int leftDist = EditDistance.measure(left.root.getRawData(), root.getRawData());
+        if (getLeft() != null) {
+            int leftDist = EditDistance.measure(getLeft().root.getRawData(), this.root.getRawData());
             assert leftDist <= root.threshold;
-            if (right != null) {
-                int rightDist = EditDistance.measure(right.root.getRawData(), root.getRawData());
+            if (getRight() != null) {
+                int rightDist = EditDistance.measure(getRight().root.getRawData(), this.root.getRawData());
                 assert rightDist > root.threshold;
                 assert rightDist > leftDist;
             }

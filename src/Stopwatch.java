@@ -2,7 +2,7 @@
  * Utility class for timing things. Millisecond precision.
  */
 public class Stopwatch {
-    // The value of System.currentTimeMillis() when this stopwatch was created.
+    /** The value of System.currentTimeMillis() when this stopwatch was created. */
     private long millis;
 
     private Stopwatch(long millis) {
@@ -11,7 +11,7 @@ public class Stopwatch {
 
     /**
      * Create a new Stopwatch starting at the current time.
-     * @return A new Stopwatch. Use it quick!
+     * @return A new Stopwatch. Time is ticking. Use it quick!
      */
     public static Stopwatch tick() {
         return new Stopwatch(System.currentTimeMillis());

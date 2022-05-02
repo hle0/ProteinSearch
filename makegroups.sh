@@ -1,4 +1,5 @@
 #!/bin/bash
+# You don't need to grade this (see README.md)
 mkdir samples
 cat data/uniprot_sprot.fasta | python3 splitfasta.py
 cd samples/originals

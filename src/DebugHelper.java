@@ -1,5 +1,9 @@
 import java.util.TreeMap;
 
+/**
+ * Helper for collecting statistics to estimate performance of various algorithms.
+ * You can access this by enabling debug stats in the debug menu.
+ */
 public class DebugHelper {
     private static DebugHelper INSTANCE = new DebugHelper();
 

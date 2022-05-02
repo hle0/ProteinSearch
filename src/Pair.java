@@ -6,11 +6,11 @@ import java.util.Objects;
  * Immutable.
  */
 public class Pair<T> {
-    // The first element.
+    /** The first element. */
     public final T a;
-    // The second element.
+    /** The second element. */
     public final T b;
-    // The cached hashCode.
+    /** The cached hashCode. */
     private final int cachedHashCode;
 
     public Pair(T a, T b) {
@@ -19,12 +19,12 @@ public class Pair<T> {
         this.cachedHashCode = this._hashCode();
     }
 
-    // Get the first component.
+    /** Get the first component. */
     public T getA() {
         return a;
     }
 
-    // Get the second component.
+    /** Get the second component. */
     public T getB() {
         return b;
     }
@@ -45,7 +45,7 @@ public class Pair<T> {
         return a.equals(temp.a) && b.equals(temp.b);
     }
 
-    // Compute the hashCode and return it.
+    /** Actually compute the hashCode and return it. */
     private int _hashCode() {
         // prepare yourself for an awful but fast hash code
         return this.a.hashCode() + (this.b.hashCode() << 16) + (this.b.hashCode() >> 16);

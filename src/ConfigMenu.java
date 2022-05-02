@@ -20,8 +20,24 @@ public final class ConfigMenu {
      * If false, use the slow, recursive edit distance calculation that satisfies the proposal.
      * Both give identical results.
      */
-    public static boolean USE_FAST_EDIT_DISTANCE = false;
+    public static boolean USE_FAST_EDIT_DISTANCE = true;
 
+    /**
+     * If true, optimize the tree upon loading the index.
+     * If false, don't optimize, just balance.
+     */
+    public static boolean OPTIMIZE_TREE = false;
+
+    /**
+     * If true, load .multifasta files. Technically out of spec (?)
+     * If false, just ignore them.
+     */
+    public static boolean LOAD_MULTIFASTA = true;
+
+    /**
+     * Display the menu by forking an existing Prompt object.
+     * @param parent The existing Prompt object to fork.
+     */
     public static void displayMenu(Prompt parent) {
         Prompt prompt = parent.fork();
 
@@ -37,7 +53,7 @@ public final class ConfigMenu {
             subPrompt.addVoidOption("Disable", sp -> {
                 SHOW_DEBUG_STATS = false;
             });
-            
+
             subPrompt.doPrompt();
 
             DebugHelper.getInstance().clear();
@@ -58,6 +74,34 @@ public final class ConfigMenu {
 
             subPrompt.addVoidOption("Use compliant", sp -> {
                 USE_FAST_EDIT_DISTANCE = false;
+            });
+
+            subPrompt.doPrompt();
+        });
+
+        prompt.addVoidOption("Enable/disable tree optimization", p -> {
+            Prompt subPrompt = prompt.fork();
+            subPrompt.setQuery(String.format("Currently, tree optimization during index rebuilding is %s.", OPTIMIZE_TREE ? "enabled" : "disabled"));
+            
+            subPrompt.addVoidOption("Enable", sp -> {
+                OPTIMIZE_TREE = true;
+            });
+            subPrompt.addVoidOption("Disable", sp -> {
+                OPTIMIZE_TREE = false;
+            });
+
+            subPrompt.doPrompt();
+        });
+
+        prompt.addVoidOption("Enable/disable loading of .multifasta files", p -> {
+            Prompt subPrompt = prompt.fork();
+            subPrompt.setQuery(String.format("Currently, .multifasta files are %s.", LOAD_MULTIFASTA ? "enabled" : "disabled"));
+            
+            subPrompt.addVoidOption("Enable", sp -> {
+                LOAD_MULTIFASTA = true;
+            });
+            subPrompt.addVoidOption("Disable", sp -> {
+                LOAD_MULTIFASTA = false;
             });
 
             subPrompt.doPrompt();

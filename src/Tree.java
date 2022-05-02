@@ -1,14 +1,22 @@
 import java.util.LinkedList;
-import java.util.List;
 import java.util.NoSuchElementException;
 
+/**
+ * A generic binary tree.
+ * 
+ * Implements common operations such as tree rotations.
+ */
 public class Tree<T> {
-    // The node for this tree. Not necessarily the root for the entire tree (this tree may be a subtree).
+    /** The node for this tree. Not necessarily the root for the entire tree (this tree may be a subtree). */
     public T root = null;
 
-    public Tree<T> parent = null;
-    public Tree<T> left = null;
-    public Tree<T> right = null;
+    /** Our parent tree, if we have one, or null. */
+    private Tree<T> parent = null;
+
+    /** The left subtree, if we have one, or null. */
+    private Tree<T> left = null;
+    /** The right subtree, if we have one, or null. */
+    private Tree<T> right = null;
 
     public Tree(T root) {
         this.root = root;
@@ -37,55 +45,94 @@ public class Tree<T> {
         print("");
     }
 
-    public void makeOrphan() {
-        if (this.parent != null) {
-            if (this.parent.left == this) {
-                this.parent.setLeft(null);
-            } else if (this.parent.right == this) {
-                this.parent.setRight(null);
-            }
-
-            this.parent = null;
-        }
+    public Tree<T> getParent() {
+        return parent;
     }
 
+    public Tree<T> getLeft() {
+        return left;
+    }
+
+    public Tree<T> getRight() {
+        return right;
+    }
+
+    /**
+     * Set the left side of this tree, and orphan the old left side if applicable
+     * @param tree the new left side of this tree
+     */
     public void setLeft(Tree<T> tree) {
-        if (left != null && left.parent == this) {
+        // fixes oldLeft, oldLeft.parent
+        if (left != null) {
             left.parent = null;
             left = null;
         }
 
-        if (tree != null) {
-            tree.makeOrphan();
-
-            tree.parent = this;
-        }
-
         left = tree;
+
+        // fixes oldLeft
+        if (left != null) {
+            Tree<T> oldParent = left.parent;
+            left.parent = this;
+
+            // fixes oldLeft.parent
+            if (oldParent != null) {
+                assert oldParent.left == left || oldParent.right == left;
+                if (oldParent.left == left) {
+                    oldParent.left = null;    
+                } else {
+                    oldParent.right = null;
+                }
+            }
+        }
     }
 
+    /**
+     * Set the right side of this tree, and orphan the old right side if applicable
+     * @param tree the new right side of this tree
+     */
     public void setRight(Tree<T> tree) {
-        if (right != null && right.parent == this) {
+        // fixes oldRight, oldRight.parent
+        if (right != null) {
             right.parent = null;
             right = null;
         }
 
-        if (tree != null) {
-            tree.makeOrphan();
-
-            tree.parent = this;
-        }
-
         right = tree;
+
+        // fixes newRight
+        if (right != null) {
+            Tree<T> oldParent = right.parent;
+            right.parent = this;
+            
+            // fixes newRight.parent
+            if (oldParent != null) {
+                assert oldParent.left == right || oldParent.right == right;
+                if (oldParent.left == right) {
+                    oldParent.left = null;    
+                } else {
+                    oldParent.right = null;
+                }
+            }
+        }
+    }
+
+    public void replaceChild(Tree<T> from, Tree<T> to) {
+        assert from == this.left || from == this.right;
+
+        if (from == this.left) {
+            this.setLeft(to);
+        } else {
+            this.setRight(to);
+        }
     }
 
     /**
      * Perform a left tree rotation with this node as the root.
-     * @return The new tree to replace this one
      * @throws NoSuchElementException if there are not enough subtrees to perform this operation
      */
-    public Tree<T> rotateLeft() throws NoSuchElementException {
-        // https://en.wikipedia.org/wiki/Tree_rotation#/media/File:Tree_rotation.svg
+    public void rotateLeft() throws NoSuchElementException {
+        // https://en.wikipedia.org/wiki/Tree_rotation#/media/File:Tree_Rotations.gif
 
         if (left == null || right == null || right.left == null || right.right == null) {
             throw new NoSuchElementException();
@@ -93,30 +140,23 @@ public class Tree<T> {
 
         DebugHelper.getInstance().hit("Tree.rotateLeft");
 
-        Tree<T> p = this;
-        Tree<T> q = this.right;
+        Tree<T> newRoot = this.right;
 
-        Tree<T> a = p.left;
-        Tree<T> b = q.left;
-        Tree<T> c = q.right;
+        this.setRight(this.right.left);
+        
+        Tree<T> oldParent = this.parent;
 
-        // already done
-        //p.left = a;
-        q.setLeft(p);
-        // already done
-        //q.right = c;
-        p.setRight(b);
-
-        return q;
+        oldParent.replaceChild(this, newRoot);
+        
+        newRoot.setLeft(this);
     }
 
     /**
      * Perform a right tree rotation with this node as the root.
-     * @return The new tree to replace this one
      * @throws NoSuchElementException if there are not enough subtrees to perform this operation
      */
-    public Tree<T> rotateRight() throws NoSuchElementException {
-        // https://en.wikipedia.org/wiki/Tree_rotation#/media/File:Tree_rotation.svg
+    public void rotateRight() throws NoSuchElementException {
+        // https://en.wikipedia.org/wiki/Tree_rotation#/media/File:Tree_Rotations.gif
 
         if (left == null || right == null || left.left == null || left.right == null) {
             throw new NoSuchElementException();
@@ -124,21 +164,15 @@ public class Tree<T> {
 
         DebugHelper.getInstance().hit("Tree.rotateRight");
 
-        Tree<T> q = this;
-        Tree<T> p = this.left;
+        Tree<T> newRoot = this.left;
 
-        Tree<T> a = p.left;
-        Tree<T> b = p.right;
-        Tree<T> c = q.right;
+        this.setLeft(this.left.right);
 
-        // already done
-        //p.left = a;
-        q.setLeft(b);
-        // already done
-        //q.right = c;
-        p.setRight(q);
+        Tree<T> oldParent = this.parent;
 
-        return p;
+        oldParent.replaceChild(this, newRoot);
+
+        newRoot.setRight(this);
     }
 
     /**
@@ -191,11 +225,11 @@ public class Tree<T> {
         if (left.isFull()) {
             try {
                 while (left.getTilt() > 1) {
-                    setLeft(left.rotateLeft());
+                    left.rotateLeft();
                 }
 
                 while (left.getTilt() < -1) {
-                    setLeft(left.rotateRight());
+                    left.rotateRight();
                 }
             } catch (NoSuchElementException e) {}
         }
@@ -203,11 +237,11 @@ public class Tree<T> {
         if (right.isFull()) {
             try {
                 while (right.getTilt() > 1) {
-                    setRight(right.rotateLeft());
+                    right.rotateLeft();
                 }
 
                 while (right.getTilt() < -1) {
-                    setRight(right.rotateRight());
+                    right.rotateRight();
                 }
             } catch (NoSuchElementException e) {
                 // do nothing

@@ -7,19 +7,29 @@ import java.util.Objects;
 import java.util.Scanner;
 import java.util.stream.Stream;
 
+/**
+ * The whole enchalada.
+ * 
+ * i.e., the main application
+ */
 public class ProteinSearch {
     Scanner scanner = new Scanner(System.in);
     VantagePointTree<FASTAFile> tree;
+    String directory;
 
     /**
      * Instantiate a new instance of the CLI app, and build the index.
      * @param directory The directory to index FASTA files from
      */
     public ProteinSearch(String directory) {
+        this.directory = directory;
         this.preStartup();
-        this.buildIndex(directory);
+        this.buildIndex();
     }
 
+    /**
+     * Allow the user to change performance settings before the tree is indexed
+     */
     public void preStartup() {
         Prompt prompt = new Prompt(this.scanner);
         prompt.setQuery("What do you want to do?");
@@ -30,69 +40,70 @@ public class ProteinSearch {
 
     /**
      * (re?)build the index.
-     * @param directory The directory to index FASTA files from
      */
-    public void buildIndex(String directory) {
+    public void buildIndex() {
         DebugHelper.getInstance().lap();
 
         System.out.println("Building index...");
-        Stopwatch watch = Stopwatch.tick();
+        Stopwatch watch = Stopwatch.tick(); // Time is ticking!
 
         File[] files = new File(directory).listFiles();
         List<File> fileList = Arrays.asList(files);
         // We do this to make the tree behavior a bit better
         // Sequential filenames are usually related proteins
         Collections.shuffle(fileList);
-
         
         tree = VantagePointTree.buildFromIterator(
             fileList.stream()
-            .filter(f -> f.isFile())
+            .filter(f -> f.isFile()) // make sure it's not a directory or something weird
             .<FASTAFile>flatMap(f -> {
                 if (f.getName().endsWith(".fasta")) {
+                    // load normal .fasta files
                     FASTAFile fasta = new FASTAFile(f.getAbsolutePath());
 
                     try {
                         // if this fails, the file is definitely not going to work
                         fasta.getFASTAData();
+                        // make it in a stream of itself (we're flatmapping here)
                         return Stream.of(fasta);
                     } catch (Exception e) {
                         System.out.printf("Encountered error while loading %s (skipping):%n", f.getAbsolutePath());
                         e.printStackTrace();
                     }
 
-                    return Stream.<FASTAFile>of(fasta);
-                } else if (f.getName().endsWith(".multifasta")) {
+                    // Loading the file didn't work.
+                } else if (ConfigMenu.LOAD_MULTIFASTA && f.getName().endsWith(".multifasta")) {
+                    // load .multifasta files
                     try {
                         // if this fails, the file is definitely not going to work
+                        // read each segment of the multifile
                         return MultiFASTAFile.readFiles(f.getAbsolutePath()).stream()
                             .map(fasta -> {
                                 try {
+                                    // ensure that we can actually load each segment
                                     fasta.getFASTAData();
                                     return (FASTAFile) fasta;
                                 } catch (Exception e) {
                                     System.out.printf("Encountered error while loading %s (skipping):%n", fasta.toString());
                                 }
 
+                                // if not, don't include it
                                 return null;
                             })
-                            .filter(Objects::nonNull);
+                            .filter(Objects::nonNull); // remove failed entries
                     } catch (Exception e) {
+                        // the whole .multifasta failed
                         System.out.printf("Encountered error while loading %s (skipping):%n", f.getAbsolutePath());
                         e.printStackTrace();
                     }
                 }
 
+                // Return an empty stream if we couldn't get it working.
                 return Stream.empty();
             })
-            .filter(Objects::nonNull)
+            .filter(Objects::nonNull) // remove all nulls (there shouldn't be any)
             .iterator()
         );
-        DebugHelper.getInstance().lap();
-        System.out.printf("Done building index in %d ms.%n", watch.tock());
-
-        System.out.println("Optimizing index (this may take a while)...");
-        //tree = tree.optimize();
         DebugHelper.getInstance().lap();
         System.out.printf("Done in %d ms. (%d nodes)%n", watch.tock(), tree.getSize());
     }
@@ -103,6 +114,7 @@ public class ProteinSearch {
      * @param exhaustive Whether to perform an exhaustive search.
      */
     public void doSearch(boolean exhaustive) {
+        // get the filename of the sequence we want
         String fn = Prompt.nextLine(scanner, "FASTA Filename:");
 
         DebugHelper.getInstance().lap();
@@ -116,18 +128,17 @@ public class ProteinSearch {
             FASTAFile.clearCache();
 
             Stopwatch watch = Stopwatch.tick();
-            List<DistanceQueue.Item<VantagePointTree<FASTAFile>>> results = tree.search(data, ConfigMenu.NUM_NEIGHBORS, exhaustive);
-            long timeSpent = watch.tock();
+            List<AssociatedPriorityQueue.Item<VantagePointTree<FASTAFile>>> results = tree.search(data, ConfigMenu.NUM_NEIGHBORS, exhaustive);
             DebugHelper.getInstance().lap();
 
-            System.out.printf("Found these results in %d ms:%n", timeSpent);
+            System.out.printf("Found these results in %d ms:%n", watch.tock());
             for (int i = 0; i < results.size(); i++) {
-                DistanceQueue.Item<VantagePointTree<FASTAFile>> item = results.get(i);
+                AssociatedPriorityQueue.Item<VantagePointTree<FASTAFile>> item = results.get(i);
 
                 System.out.printf("%2d) Distance %5d, %s%n", i + 1, item.priority, item.data.root.toFancyString());
             }
         } catch (IOException e) {
-            System.out.println("Failed to load FASTA sequence!");
+            System.out.println("Failed to load FASTA sequence! Try again.");
             e.printStackTrace();
         }
     }
@@ -142,6 +153,14 @@ public class ProteinSearch {
         prompt.addVoidOption("Perform a search", p -> doSearch(false));
         prompt.addVoidOption("[debug] Perform a long, exhaustive search", p -> doSearch(true));
         prompt.addVoidOption("[debug] Change configuration options", ConfigMenu::displayMenu);
+        prompt.addVoidOption("[debug] Print tree (probably a bad idea)", p -> tree.print());
+        prompt.addVoidOption("[debug] Rebuild tree", p -> {
+            String newPath = Prompt.nextLine(p.getScanner(), "Enter the new directory path (leave blank for same):");
+
+            directory = newPath.isBlank() ? directory : newPath;
+            
+            this.buildIndex();
+        });
         prompt.addDoneOption("Quit");
 
         prompt.promptUntilDone();
@@ -152,8 +171,7 @@ public class ProteinSearch {
         // Who would have thought...
         // It's probably too late to submit another project proposal, so let's hack together some other solution...
         // We can just run this in a new Thread with a different stack size.
-        // Note that the default is to just not use the recursive implementation;
-        // if you want to enable it, edit the relevant code in EditDistance.measure(...).
+        // You can change to a better implementation in the debug settings
         Thread workaroundThread = new Thread(null, new Runnable() {
             @Override
             public void run() {
