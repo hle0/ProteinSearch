@@ -211,7 +211,7 @@ public class VantagePointTree<T extends VantagePointTree.Node> extends Tree<T> {
         // It turns out tree rotations break a lot of things, but I didn't notice because assertions were disabled.
         //output.balance();
 
-        output.verify();
+        //output.verify();
 
         if (ConfigMenu.OPTIMIZE_TREE) {
             System.out.println("Optimizing tree, this may take a while. Go grab some coffee...");
@@ -241,7 +241,7 @@ public class VantagePointTree<T extends VantagePointTree.Node> extends Tree<T> {
         // It turns out tree rotations break a lot of things, but I didn't notice because assertions were disabled.
         //optimized.balance();
 
-        optimized.verify();
+        //optimized.verify();
 
         return optimized;
     }

@@ -154,6 +154,17 @@ public class ProteinSearch {
         prompt.addVoidOption("[debug] Perform a long, exhaustive search", p -> doSearch(true));
         prompt.addVoidOption("[debug] Change configuration options", ConfigMenu::displayMenu);
         prompt.addVoidOption("[debug] Print tree (probably a bad idea)", p -> tree.print());
+        prompt.addVoidOption("[debug] Verify tree", p -> {
+            try {
+                tree.verify();
+            } catch (AssertionError error) {
+                System.out.println("[!!!] Verification failed!");
+                error.printStackTrace();
+                return;
+            }
+
+            System.out.println("[+++] Verification passed!");
+        });
         prompt.addVoidOption("[debug] Rebuild tree", p -> {
             String newPath = Prompt.nextLine(p.getScanner(), "Enter the new directory path (leave blank for same):");
 
