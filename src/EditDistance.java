@@ -12,9 +12,9 @@ public class EditDistance {
      * - Each implementation may want to hold some state (e.g. a cache)
      */
     protected static abstract class AbstractRuler {
-        // the first string.
+        /** the first string. */
         protected String s;
-        // the second string.
+        /** the second string. */
         protected String t;
 
         AbstractRuler(String s, String t) {
@@ -33,9 +33,11 @@ public class EditDistance {
      * A recursive implementation of AbstractRuler. Slow. Very slow.
      */
     protected static class RecursiveRuler extends AbstractRuler {
-        // cache as specified in project proposal
-        // it has to use Pairs instead of Points because it hinges on having stupid fast hashCode speed
-        // this is honestly an awful way to compute edit distance, but I didn't have time to submit another proposal
+        /**
+         * cache as specified in project proposal
+         * it has to use Pairs instead of Points because it hinges on having stupid fast hashCode speed
+         * this is honestly an awful way to compute edit distance, but I didn't have time to submit another proposal
+         */
         Map<Pair<Integer>, Integer> cache;
 
         RecursiveRuler(String s, String t) {
