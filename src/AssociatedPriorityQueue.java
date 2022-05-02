@@ -12,7 +12,7 @@ public class AssociatedPriorityQueue<T> extends LinkedList<AssociatedPriorityQue
     public static class Item<T> implements Comparable<Item<T>> {
         /** The priority; lower values are more important / better / favored */
         public int priority;
-        /**  */
+        /** The actual data */
         public T data;
     
         public Item(int priority, T data) {
