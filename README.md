@@ -14,6 +14,6 @@ There are a few aspects in which this project differs from the proposal:
 
 ## Samples
 
-Samples are taken from UniProt. In total.zip, they're organized in the samples folder. **Be careful with the sample files.** Each `0x.zip` file has more files than the previous one, starting from about 10 files to **upwards of 50,000 files.** It is very easy to hang your machine if your hardware or software is not equipped to handle this kind of extraction. Each file ranges from a few hundred bytes to several kilobytes. Each subset of files is mutually exclusive, so there will be nothing in `00.zip` that is in `06.zip`, and vice versa, for example.
+Samples are taken from UniProt. In samples.zip ([here](https://drive.google.com/file/d/1cwoY9zfOlaTAcOpgnmJDP5WCUrEcFADW/view?usp=sharing)), they're organized in the samples folder. **Be careful with the sample files.** Each `0x.zip` file has more files than the previous one, starting from about 10 files to **upwards of 50,000 files.** It is very easy to hang your machine if your hardware or software is not equipped to handle this kind of extraction. Each file ranges from a few hundred bytes to several kilobytes. Each subset of files is mutually exclusive, so there will be nothing in `00.zip` that is in `06.zip`, and vice versa, for example.
 
 There is also `faulty.zip`, which has two faulty FASTA files that can be used to test if error handling works correctly. (It does.)
