@@ -105,7 +105,7 @@ public class ProteinSearch {
             .iterator()
         );
         DebugHelper.getInstance().lap();
-        System.out.printf("Done in %d ms. (%d nodes)%n", watch.tock(), tree.getSize());
+        System.out.printf("Done in %d us. (%d nodes)%n", watch.tock() / 1000, tree.getSize());
     }
 
     /**
@@ -131,7 +131,7 @@ public class ProteinSearch {
             List<AssociatedPriorityQueue.Item<VantagePointTree<FASTAFile>>> results = tree.search(data, ConfigMenu.NUM_NEIGHBORS, exhaustive);
             DebugHelper.getInstance().lap();
 
-            System.out.printf("Found these results in %d ms:%n", watch.tock());
+            System.out.printf("Found these results in %d us:%n", watch.tock() / 1000);
             for (int i = 0; i < results.size(); i++) {
                 AssociatedPriorityQueue.Item<VantagePointTree<FASTAFile>> item = results.get(i);
 
@@ -155,6 +155,19 @@ public class ProteinSearch {
         prompt.addVoidOption("[debug] Change configuration options", ConfigMenu::displayMenu);
         prompt.addVoidOption("[debug] Print tree (probably a bad idea)", p -> tree.print());
         prompt.addVoidOption("[debug] Verify tree", p -> {
+            boolean assertionsEnabled = false;
+
+            try {
+                assert false;
+            } catch (AssertionError error) {
+                assertionsEnabled = true;
+            }
+
+            if (!assertionsEnabled) {
+                System.out.println("[???] Verification cannot be performed when assertions are disabled.");
+                return;
+            }
+
             try {
                 tree.verify();
             } catch (AssertionError error) {

@@ -118,8 +118,8 @@ public class VantagePointTree<T extends VantagePointTree.Node> extends Tree<T> {
         // Wish I had thought of that 4 hours ago...
         int tau = 1_000_000_000;//Integer.MAX_VALUE;
         AssociatedPriorityQueue<VantagePointTree<T>> toSearch = new AssociatedPriorityQueue<>();
-        assert toSearch.prioritizeItem(0, this);
-        assert !toSearch.isEmpty(); // you'd be surprised how much this has driven me mad
+        Util.ensure(toSearch.prioritizeItem(0, this));
+        Util.ensure(!toSearch.isEmpty()); // you'd be surprised how much this has driven me mad
 
         AssociatedPriorityQueue<VantagePointTree<T>> results = new AssociatedPriorityQueue<>(nns);
         DistanceCache<T> distanceCache = new DistanceCache<>(query);
@@ -143,8 +143,8 @@ public class VantagePointTree<T extends VantagePointTree.Node> extends Tree<T> {
             if (exhaustive) {
                 // search every single node
                 results.prioritizeItem(distanceCache.distance(current), current);
-                if (curLeft  != null) assert toSearch.prioritizeItem(0, (VantagePointTree<T>)  curLeft);
-                if (curRight != null) assert toSearch.prioritizeItem(0, (VantagePointTree<T>) curRight);
+                if (curLeft  != null) Util.ensure(toSearch.prioritizeItem(0, (VantagePointTree<T>)  curLeft));
+                if (curRight != null) Util.ensure(toSearch.prioritizeItem(0, (VantagePointTree<T>) curRight));
             } else {
                 int dist;
                 // search intelligently
